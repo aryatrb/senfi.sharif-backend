@@ -76,7 +76,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    role = Column(String, nullable=False, default="center_member")  # superadmin, head, center_member, unit_head, unit_member
+    role = Column(String, nullable=False, default="simple_user")  # superadmin, head, center_member, unit_head, unit_member, simple_user
     unit = Column(String, nullable=True)  # فقط برای دبیر/عضو واحد
 
 # --- Campaign Model ---
@@ -89,6 +89,7 @@ class PendingCampaign(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     status = Column(String, default="pending")
     is_anonymous = Column(String, default="public")  # public یا anonymous
+    end_datetime = Column(DateTime, nullable=False)  # تاریخ و ساعت پایان
 
 # --- Campaign Signature Model ---
 class CampaignSignature(Base):
@@ -199,13 +200,15 @@ class CampaignSubmitSchema(BaseModel):
     description: str
     email: Optional[EmailStr] = None
     is_anonymous: str = "public"  # public یا anonymous
+    end_datetime: datetime  # تاریخ و ساعت پایان (میلادی)
     class Config:
         json_schema_extra = {
             "example": {
                 "title": "کمپین نمونه",
                 "description": "توضیحات کمپین",
                 "email": "user@sharif.edu",
-                "is_anonymous": "public"
+                "is_anonymous": "public",
+                "end_datetime": "2024-07-20T23:59:00"
             }
         }
 
@@ -214,6 +217,7 @@ class CampaignSubmitResponse(BaseModel):
     campaignId: int
     status: str
     created_at: datetime
+    end_datetime: datetime
 
 class CampaignListResponse(BaseModel):
     success: bool
@@ -308,7 +312,7 @@ def register(body: RegisterSchema, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == body.email.lower()).first():
         raise HTTPException(status_code=400, detail="Email already registered")
     hashed = get_password_hash(body.password)
-    user = User(email=body.email.lower(), hashed_password=hashed)
+    user = User(email=body.email.lower(), hashed_password=hashed, role="simple_user")
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -340,22 +344,27 @@ def submit_campaign(body: CampaignSubmitSchema, db: Session = Depends(get_db)):
       "title": "کمپین نمونه",
       "description": "توضیحات کمپین",
       "email": "user@sharif.edu",
-      "is_anonymous": "public"
+      "is_anonymous": "public",
+      "end_datetime": "2024-07-20T23:59:00"
     }
     نمونه پاسخ موفق:
     {
       "success": true,
       "campaignId": 1,
       "status": "pending",
-      "created_at": "2024-07-15T21:00:00Z"
+      "created_at": "2024-07-15T21:00:00Z",
+      "end_datetime": "2024-07-20T23:59:00Z"
     }
     """
+    if body.end_datetime <= datetime.utcnow():
+        raise HTTPException(status_code=400, detail="تاریخ پایان باید بعد از اکنون باشد.")
     campaign = PendingCampaign(
         title=body.title,
         description=body.description,
         email=body.email,
         status="pending",
-        is_anonymous=body.is_anonymous
+        is_anonymous=body.is_anonymous,
+        end_datetime=body.end_datetime
     )
     db.add(campaign)
     db.commit()
@@ -364,7 +373,8 @@ def submit_campaign(body: CampaignSubmitSchema, db: Session = Depends(get_db)):
         "success": True,
         "campaignId": campaign.id,
         "status": campaign.status,
-        "created_at": campaign.created_at
+        "created_at": campaign.created_at,
+        "end_datetime": campaign.end_datetime
     }
 
 @app.get("/api/admin/campaigns", response_model=CampaignListResponse)
@@ -386,7 +396,8 @@ def get_pending_campaigns(
             "description": campaign.description,
             "email": campaign.email,
             "created_at": campaign.created_at,
-            "status": campaign.status
+            "status": campaign.status,
+            "end_datetime": campaign.end_datetime
         })
     
     return {
@@ -483,7 +494,7 @@ def get_approved_campaigns(db: Session = Depends(get_db)):
             "email": campaign.email,
             "created_at": campaign.created_at,
             "status": campaign.status,
-            "is_anonymous": campaign.is_anonymous
+            "end_datetime": campaign.end_datetime
         })
     
     return {
@@ -508,7 +519,7 @@ def get_rejected_campaigns(db: Session = Depends(get_db)):
             "email": campaign.email,
             "created_at": campaign.created_at,
             "status": campaign.status,
-            "is_anonymous": campaign.is_anonymous
+            "end_datetime": campaign.end_datetime
         })
     return {
         "success": True,
