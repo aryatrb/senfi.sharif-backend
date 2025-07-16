@@ -19,7 +19,7 @@ def get_pending_campaigns(
             "id": campaign.id,
             "title": campaign.title,
             "description": campaign.description,
-            "email": campaign.email,
+            "email": campaign.email or "",  # Handle None values
             "created_at": campaign.created_at,
             "status": campaign.status,
             "end_datetime": campaign.end_datetime
