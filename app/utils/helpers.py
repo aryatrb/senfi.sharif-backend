@@ -28,10 +28,25 @@ def send_verification_email_gmail(to_email: str, code: str) -> bool:
         msg["To"] = to_email
         msg.set_content(f"Your verification code is: {code}")
         
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-            smtp.login(GMAIL_USER, GMAIL_PASS)
-            smtp.send_message(msg)
-        return True
+        # Try different SMTP configurations
+        try:
+            # Method 1: SMTP_SSL with port 465
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+                smtp.login(GMAIL_USER, GMAIL_PASS)
+                smtp.send_message(msg)
+            return True
+        except Exception as e1:
+            print(f"[DEBUG] SMTP_SSL failed: {e1}")
+            try:
+                # Method 2: SMTP with STARTTLS on port 587
+                with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
+                    smtp.starttls()
+                    smtp.login(GMAIL_USER, GMAIL_PASS)
+                    smtp.send_message(msg)
+                return True
+            except Exception as e2:
+                print(f"[DEBUG] SMTP STARTTLS failed: {e2}")
+                raise e2
     except Exception as e:
         print(f"[ERROR] Failed to send email: {e}")
         return False
