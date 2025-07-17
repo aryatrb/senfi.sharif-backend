@@ -49,6 +49,9 @@ def register_user(body: RegisterSchema, db: Session = Depends(get_db)):
 @router.post("/auth/login", response_model=TokenResponse)
 def login_user(body: LoginSchema, db: Session = Depends(get_db)):
     user = crud_user.get_user_by_email(db, email=body.email)
+    # Debug: print type of user.hashed_password
+    if user:
+        print("[DEBUG] hashed_password type:", type(user.hashed_password), user.hashed_password)
     if not user or not verify_password(body.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     token = create_access_token({"sub": user.email, "user_id": user.id})
@@ -89,14 +92,18 @@ def update_user_role_api(
     user = crud_user.get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
-    if user.role == "superadmin":
+    if getattr(user, 'role', None) == "superadmin":
         raise HTTPException(status_code=400, detail="Cannot change role of another superadmin.")
     updated = crud_user.update_user_role(db, user_id, req.new_role)
     if not updated:
-        raise HTTPException(status_code=500, detail="Failed to update user role.")
+        return {"success": False, "message": "Failed to update user role."}
     return {
-        "id": updated.id,
-        "email": updated.email,
-        "role": updated.role,
-        "unit": updated.unit
+        "success": True,
+        "message": "User role updated successfully.",
+        "user": {
+            "id": updated.id,
+            "email": updated.email,
+            "role": updated.role,
+            "unit": updated.unit
+        }
     }
