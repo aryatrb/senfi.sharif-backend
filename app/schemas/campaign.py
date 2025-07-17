@@ -25,7 +25,7 @@ class CampaignResponse(BaseModel):
     id: int
     title: str
     description: str
-    email: str = None
+    email: Optional[str] = None
     created_at: datetime
     status: str
     end_datetime: datetime
