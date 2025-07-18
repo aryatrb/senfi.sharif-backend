@@ -101,9 +101,9 @@ def update_user_role_api(
         "success": True,
         "message": "User role updated successfully.",
         "user": {
-            "id": updated.id,
-            "email": updated.email,
-            "role": updated.role,
-            "unit": updated.unit
+        "id": updated.id,
+        "email": updated.email,
+        "role": updated.role,
+        "unit": updated.unit
         }
     }
