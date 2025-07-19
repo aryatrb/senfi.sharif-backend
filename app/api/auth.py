@@ -48,14 +48,35 @@ def register_user(body: RegisterSchema, db: Session = Depends(get_db)):
 
 @router.post("/auth/login", response_model=TokenResponse)
 def login_user(body: LoginSchema, db: Session = Depends(get_db)):
+    print(f"[DEBUG] Login attempt for email: {body.email}")
     user = crud_user.get_user_by_email(db, email=body.email)
-    # Debug: print type of user.hashed_password
-    if user:
-        print("[DEBUG] hashed_password type:", type(user.hashed_password), user.hashed_password)
-    if not user or not verify_password(body.password, user.hashed_password):
+    
+    if not user:
+        print(f"[DEBUG] User not found for email: {body.email}")
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    print(f"[DEBUG] User found: {user.email}, role: {getattr(user, 'role', 'N/A')}")
+    
+    if not verify_password(body.password, str(user.hashed_password)):
+        print(f"[DEBUG] Password verification failed for user: {body.email}")
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    print(f"[DEBUG] Password verified successfully for user: {body.email}")
     token = create_access_token({"sub": user.email, "user_id": user.id})
-    return {"success": True, "token": token, "user": user}
+    
+    response = {
+        "success": True, 
+        "token": token, 
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "role": getattr(user, 'role', 'user'),
+            "unit": getattr(user, 'unit', None)
+        }
+    }
+    
+    print(f"[DEBUG] Login successful, returning response: {response}")
+    return response
 
 @router.get("/auth/validate", response_model=ValidateTokenResponse)
 def validate_token_user(current_user: UserResponse = Depends(get_current_user)):

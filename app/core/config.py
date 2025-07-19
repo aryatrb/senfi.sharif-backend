@@ -9,7 +9,7 @@ DATABASE_URL = "sqlite:///./users.db"
 # JWT Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "your_jwt_secret_key")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 hours instead of 60 minutes
 
 # Email Configuration
 GMAIL_USER = os.environ.get("GMAIL_USER")
